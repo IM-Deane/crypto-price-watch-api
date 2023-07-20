@@ -80,16 +80,25 @@ document.addEventListener("DOMContentLoaded", function () {
 		combobox.value = itemId;
 		optionsList.style.display = "none";
 
-		onSelectItem(itemId);
+		fetchCoins(itemId);
 	}
 
-	function onSelectItem(coinId, currency = "cad") {
-		fetch(`/api/coins?currency=${currency}&ids=${coinId}`)
+	function fetchCoins(coinId, currency = "cad") {
+		const URL = `/coins?currency=${currency}&ids=${coinId}`;
+
+		fetch(URL)
 			.then((response) => {
-				console.log("response", response);
+				// status code is 200-299
+				if (response.ok) {
+					window.location.href = URL;
+				} else {
+					return response.text().then((text) => {
+						alert(`Error: ${text}`);
+					});
+				}
 			})
 			.catch((error) => {
-				console.log("error", error);
+				alert(`Network error: ${error.message}`);
 			});
 	}
 });

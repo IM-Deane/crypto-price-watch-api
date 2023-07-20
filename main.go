@@ -52,7 +52,7 @@ func main() {
 
 	http.Handle("/static/", http.StripPrefix("/static", http.FileServer(http.Dir("./static"))))
 	http.HandleFunc("/", displayHome)
-	http.HandleFunc("/api/search", displayCoinSearchResults)
+	http.HandleFunc("/coins", displayCoinsList)
 
 	http.ListenAndServe("localhost:8080", nil)
 }
@@ -60,24 +60,18 @@ func main() {
 // *** Handlers ***
 
 func displayHome(w http.ResponseWriter, r *http.Request) {
-	// switch path.Ext(r.URL.Path) {
-	// case ".css":
-	// 	w.Header().Set("Content-Type", "text/css")
-	// case ".js":
-	// 	w.Header().Set("Content-Type", "application/javascript")
-	// case ".html":
-	// 	w.Header().Set("Content-Type", "text/html")
-	// }
 
+	// TODO: uncomment this once the API is working
 	// coins, err := queryCoinList()
-	coins := []CryptoCoin{
-		{Id: "bitcoin", Symbol: "btc", Name: "Bitcoin"},
-		{Id: "ethereum", Symbol: "eth", Name: "Ethereum"},
-	}
 	// if err != nil {
 	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
 	// 	return
 	// }
+	coins := []CryptoCoin{
+		{Id: "bitcoin", Symbol: "btc", Name: "Bitcoin"},
+		{Id: "ethereum", Symbol: "eth", Name: "Ethereum"},
+	}
+	
 
 	tmpl, err := template.ParseFiles("./static/index.html")
 	if err != nil {
@@ -89,53 +83,37 @@ func displayHome(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, coins)
 }
 
-func displayCoinSearchResults(w http.ResponseWriter, r *http.Request) {
-	var defaultCurrency string = "cad"
+func displayCoinsList(w http.ResponseWriter, r *http.Request) {
+    coinIdsStr := r.URL.Query().Get("ids")
+    if coinIdsStr == "" {
+        http.Error(w, "No coins specified", http.StatusBadRequest)
+        return
+    }
 
-	queryParams := r.URL.Query()
-	if len(queryParams) == 0 {
-		http.Error(w, "Missing query parameters: ids", http.StatusBadRequest)
-		return
-	}
+    coinIds := strings.Split(coinIdsStr, ",")
 
-	ids := queryParams["ids"]
-	if len(ids) == 0 {
-		http.Error(w, "Missing query parameter 'ids'", http.StatusBadRequest)
-		return
-	}
-	currency := queryParams.Get("currency")
-	if len(currency) == 0 {
-		currency = defaultCurrency
-	}
+    // Fetch coin details
+    coins, err := queryCoinMarket(coinIds, "cad") 
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
 
+    if len(coins) == 0 {
+        http.Error(w, "No coins found", http.StatusNotFound)
+        return
+    }
 
-	coin, err := queryCoinMarket(ids, currency)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+    // Render the coins.html template with the coins data
+    tmpl, err := template.New("coins.html").Funcs(template.FuncMap{
+		"colorClass": colorClass,
+	}).ParseFiles("./static/coins.html")
+    if err != nil {
+        http.Error(w, "Failed to load template", http.StatusInternalServerError)
+        return
+    }
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(coin)
-
-	tmpl, err := template.ParseFiles("./static/coins.html")
-	if err != nil {
-		http.Error(w, "Failed to load template", http.StatusInternalServerError)
-		return
-	}
-
-	tmpl.Execute(w, coin)
-}
-
-func displayCoinList(w http.ResponseWriter, r *http.Request) {
-	coins, err := queryCoinList()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(coins)
+    tmpl.Execute(w, coins)
 }
 
 
@@ -178,3 +156,13 @@ func queryCoinList() ([]CryptoCoin, error) {
 }
 
 
+// Helpers
+func colorClass(v float64) string {
+	if v > 0 {
+		return "text-green-500"
+	} else if (v == 0) {
+		return "text-gray-500"
+	} else {
+		return "text-red-500"
+	}
+}
