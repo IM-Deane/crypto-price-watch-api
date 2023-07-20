@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"path"
 	"strings"
 )
 
@@ -10,7 +11,19 @@ var API_URL string = "https://api.coingecko.com/api/v3/coins/markets?"
 
 
 func main() {
-	http.Handle("/", http.FileServer(http.Dir("./static")))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Check the file extension and set the appropriate MIME type
+		switch path.Ext(r.URL.Path) {
+		case ".css":
+			w.Header().Set("Content-Type", "text/css")
+		case ".js":
+			w.Header().Set("Content-Type", "application/javascript")
+		case ".html":
+			w.Header().Set("Content-Type", "text/html")
+		}
+
+		http.FileServer(http.Dir("./static")).ServeHTTP(w, r)
+	})
 
 	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
 		var defaultCurrency string = "cad"
