@@ -19,6 +19,7 @@
 					placeholder="Bitcoin"
 					aria-controls="options"
 					aria-expanded="false"
+					autocomplete="none"
 				/>
 				<button
 					type="search"
@@ -42,6 +43,7 @@
 
 				<ul
 					class="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+					style="display: none"
 					id="options"
 					role="listbox"
 				>
@@ -63,7 +65,7 @@
 							<span class="ml-3 truncate">{{.Name}}</span>
 						</div>
 						<span
-							class="absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600"
+							class="absolute inset-y-0 right-0 flex items-center pr-4 text-white-600"
 						>
 							<svg
 								class="h-5 w-5"
@@ -84,4 +86,5 @@
 			</form>
 		</main>
 	</body>
+	<script src="./static/script.js"></script>
 </html>
