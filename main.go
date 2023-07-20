@@ -2,80 +2,19 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
-	"path"
 	"strings"
+	"text/template"
 )
 
-var API_URL string = "https://api.coingecko.com/api/v3/coins/markets?"
+var API_URL_COIN_MARKET string = "https://api.coingecko.com/api/v3/coins/markets?"
+var API_URL_COIN_LIST string = "https://api.coingecko.com/api/v3/coins/list?include_platform=false"
 
-
-func main() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Check the file extension and set the appropriate MIME type
-		switch path.Ext(r.URL.Path) {
-		case ".css":
-			w.Header().Set("Content-Type", "text/css")
-		case ".js":
-			w.Header().Set("Content-Type", "application/javascript")
-		case ".html":
-			w.Header().Set("Content-Type", "text/html")
-		}
-
-		http.FileServer(http.Dir("./static")).ServeHTTP(w, r)
-	})
-
-	http.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
-		var defaultCurrency string = "cad"
-
-		queryParams := r.URL.Query()
-		if len(queryParams) == 0 {
-			http.Error(w, "Missing query parameters: ids", http.StatusBadRequest)
-			return
-		}
-
-		ids := queryParams["ids"]
-		if len(ids) == 0 {
-			http.Error(w, "Missing query parameter 'ids'", http.StatusBadRequest)
-			return
-		}
-		currency := queryParams.Get("currency")
-		if len(currency) == 0 {
-			currency = defaultCurrency
-		}
-
-
-		coin, err := queryCoinMarket(ids, currency)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		json.NewEncoder(w).Encode(coin)
-	})
-
-	http.ListenAndServe("localhost:8080", nil)
-}
-
-
-func queryCoinMarket(coinIds []string, currency string) ([]CoinMarketData, error) {
-	queryArgs := "vs_currency=" + currency + "&ids=" + strings.Join(coinIds, ",")
-
-	resp, err := http.Get(API_URL + queryArgs)
-	if err != nil {
-		return []CoinMarketData{}, err
-	}
-
-	defer resp.Body.Close()
-	
-	var coins []CoinMarketData = []CoinMarketData{}
-
-	if err := json.NewDecoder(resp.Body).Decode(&coins); err != nil {
-		return []CoinMarketData{}, err
-	}
-
-	return coins, nil
+type CryptoCoin struct {
+	Id                string  `json:"id"`
+	Symbol            string  `json:"symbol"`
+	Name              string  `json:"name"`
 }
 
 type CoinMarketData struct {
@@ -106,3 +45,136 @@ type CoinMarketData struct {
 	ROI               float64 `json:"roi"`
 	LastUpdated       string  `json:"last_updated"`
 }
+
+
+
+func main() {
+
+	http.Handle("/static/", http.StripPrefix("/static", http.FileServer(http.Dir("./static"))))
+	http.HandleFunc("/", displayHome)
+	http.HandleFunc("/api/search", displayCoinSearchResults)
+
+	http.ListenAndServe("localhost:8080", nil)
+}
+
+// *** Handlers ***
+
+func displayHome(w http.ResponseWriter, r *http.Request) {
+	// switch path.Ext(r.URL.Path) {
+	// case ".css":
+	// 	w.Header().Set("Content-Type", "text/css")
+	// case ".js":
+	// 	w.Header().Set("Content-Type", "application/javascript")
+	// case ".html":
+	// 	w.Header().Set("Content-Type", "text/html")
+	// }
+
+	// coins, err := queryCoinList()
+	coins := []CryptoCoin{
+		{Id: "bitcoin", Symbol: "btc", Name: "Bitcoin"},
+		{Id: "ethereum", Symbol: "eth", Name: "Ethereum"},
+	}
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
+
+	tmpl, err := template.ParseFiles("./static/index.html")
+	if err != nil {
+		http.Error(w, "Failed to load template", http.StatusInternalServerError)
+		log.Default().Println(err)
+		return
+	}
+
+	tmpl.Execute(w, coins)
+}
+
+func displayCoinSearchResults(w http.ResponseWriter, r *http.Request) {
+	var defaultCurrency string = "cad"
+
+	queryParams := r.URL.Query()
+	if len(queryParams) == 0 {
+		http.Error(w, "Missing query parameters: ids", http.StatusBadRequest)
+		return
+	}
+
+	ids := queryParams["ids"]
+	if len(ids) == 0 {
+		http.Error(w, "Missing query parameter 'ids'", http.StatusBadRequest)
+		return
+	}
+	currency := queryParams.Get("currency")
+	if len(currency) == 0 {
+		currency = defaultCurrency
+	}
+
+
+	coin, err := queryCoinMarket(ids, currency)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	json.NewEncoder(w).Encode(coin)
+
+	tmpl, err := template.ParseFiles("./static/coins.html")
+	if err != nil {
+		http.Error(w, "Failed to load template", http.StatusInternalServerError)
+		return
+	}
+
+	tmpl.Execute(w, coin)
+}
+
+func displayCoinList(w http.ResponseWriter, r *http.Request) {
+	coins, err := queryCoinList()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	json.NewEncoder(w).Encode(coins)
+}
+
+
+// *** Queries ***
+
+func queryCoinMarket(coinIds []string, currency string) ([]CoinMarketData, error) {
+	queryArgs := "vs_currency=" + currency + "&ids=" + strings.Join(coinIds, ",")
+
+	resp, err := http.Get(API_URL_COIN_MARKET + queryArgs)
+	if err != nil {
+		return []CoinMarketData{}, err
+	}
+
+	defer resp.Body.Close()
+	
+	var coins []CoinMarketData = []CoinMarketData{}
+
+	if err := json.NewDecoder(resp.Body).Decode(&coins); err != nil {
+		return []CoinMarketData{}, err
+	}
+
+	return coins, nil
+}
+
+func queryCoinList() ([]CryptoCoin, error) {
+	resp, err := http.Get(API_URL_COIN_LIST)
+	if err != nil {
+		return []CryptoCoin{}, err
+	}
+
+	defer resp.Body.Close()
+
+	var coins []CryptoCoin = []CryptoCoin{}
+
+	if err := json.NewDecoder(resp.Body).Decode(&coins); err != nil {
+		return []CryptoCoin{}, err
+	}
+
+	return coins, nil
+}
+
+
