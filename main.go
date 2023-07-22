@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"html/template"
 	"log"
 	"net/http"
 	"strings"
-	"text/template"
 )
 
 var API_URL_COIN_MARKET string = "https://api.coingecko.com/api/v3/coins/markets?"
@@ -73,7 +73,7 @@ func displayHome(w http.ResponseWriter, r *http.Request) {
 	}
 	
 
-	tmpl, err := template.ParseFiles("./static/index.html")
+	tmpl, err := template.ParseFiles("index.html")
 	if err != nil {
 		http.Error(w, "Failed to load template", http.StatusInternalServerError)
 		log.Default().Println(err)
