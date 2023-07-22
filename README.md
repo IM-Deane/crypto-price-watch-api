@@ -19,7 +19,7 @@ air
 Run the Tailwind CSS watcher via the their standalone CLI
 
 ```bash
-./tailwindcss -i ./static/styles/input.css -o ./static/styles/output.css --watch
+./tailwindcss -i ./static/input.css -o ./static/styles/output.css --watch
 ```
 
 Note: if you haven't installed this tool you can find the instructions
